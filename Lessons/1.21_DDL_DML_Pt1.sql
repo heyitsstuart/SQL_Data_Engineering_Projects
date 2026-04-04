@@ -91,3 +91,5 @@ WHERE role_id = 3;
 SELECT *
 FROM staging.priority_roles;
 
+SELECT 42;
+
