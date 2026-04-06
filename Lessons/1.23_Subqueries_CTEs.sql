@@ -82,3 +82,62 @@ SELECT *
 FROM valid_salaries
 LIMIT 10;
 
+
+
+
+
+-- Compare how much more (or less) remote roles pay compared to onsite roles for each job title - Used an INNER JOIn of the same CTE.
+WITH title_median AS (
+    SELECT
+        job_title_short,
+        job_work_from_home,
+        MEDIAN(salary_year_avg)::INT AS median_salary
+    FROM data_jobs.job_postings_fact
+    GROUP BY
+        job_title_short,
+        job_work_from_home
+)
+
+SELECT
+    r.job_title_short,
+    r.median_salary AS remote_median_salary,
+    o.median_salary AS onsite_median_salary,
+    (r.median_salary - o.median_salary) AS remote_premium
+FROM title_median AS r  --r for remote
+INNER JOIN title_median AS o -- o for onsite
+    ON r.job_title_short = o.job_title_short
+WHERE r.job_worK_from_home = TRUE
+    AND o.job_work_from_home = FALSE
+ORDER BY remote_premium DESC;
+
+
+
+
+
+--WHERE EXISTS and WHERE NOT EXISTS
+SELECT *
+FROM range(5) AS src(key); --"key" is the column name
+
+SELECT *
+FROM range(3) AS tgt(key);
+
+SELECT *
+FROM range(5) AS src(key)
+WHERE EXISTS (
+    SELECT 1
+    FROM range(3) AS tgt(key)
+    WHERE tgt.key = src.key
+);
+
+
+
+-- Identify job postings that have no associated skills before loading them into a data mart
+--tgt and src are just aliases
+SELECT *
+FROM data_jobs.job_postings_fact AS tgt
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM data_jobs.skills_job_dim AS src
+    WHERE tgt.job_id = src.job_id
+)
+ORDER BY job_id;
