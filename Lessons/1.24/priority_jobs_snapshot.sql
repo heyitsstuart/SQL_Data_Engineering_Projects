@@ -19,40 +19,85 @@ LEFT JOIN data_jobs.company_dim AS cd
 INNER JOIN staging.priority_roles AS r
 ON jpf.job_title_short = r.role_name;
 
--- Update statement to capture the matched rows that might have changed between the source and target table
-UPDATE main.priority_jobs_snapshot AS tgt 
-SET 
-    priority_lvl = src.priority_lvl,
-    updated_at = src.updated_at
-FROM src_priority_jobs AS src
-WHERE tgt.job_id = src.job_id
-    AND tgt.priority_lvl IS DISTINCT FROM src.priority_lvl; --Checks row by row if it changed
+-- -- Update statement to capture the matched rows that might have changed between the source and target table
+-- UPDATE main.priority_jobs_snapshot AS tgt 
+-- SET 
+--     priority_lvl = src.priority_lvl,
+--     updated_at = src.updated_at
+-- FROM src_priority_jobs AS src
+-- WHERE tgt.job_id = src.job_id
+--     AND tgt.priority_lvl IS DISTINCT FROM src.priority_lvl; --Checks row by row if it changed
+
+-- --Insert statement to insert any new entries made to the priority_roles table into the target table
+-- INSERT INTO main.priority_jobs_snapshot (
+--     job_id,
+--     job_title_short,
+--     company_name,
+--     job_posted_date,
+--     salary_year_avg,
+--     priority_lvl,
+--     updated_at
+-- )
+-- SELECT
+--     src.job_id,
+--     src.job_title_short,
+--     src.company_name,
+--     src.job_posted_date,
+--     src.salary_year_avg,
+--     src.priority_lvl,
+--     src.updated_at
+-- FROM src_priority_jobs AS src
+-- WHERE NOT EXISTS (
+--     SELECT 1
+--     FROM main.priority_jobs_snapshot AS tgt
+--     WHERE tgt.job_id = src.job_id
+-- );
+
+-- --Delete unmatched existing rows
+-- DELETE FROM main.priority_jobs_snapshot AS tgt
+-- WHERE NOT EXISTS (
+--     SELECT 1
+--     FROM src_priority_jobs AS src
+--     WHERE src.job_id = tgt.job_id
+-- );
 
 
---Insert statement to insert any new entries made to the priority_roles table into the target table
-INSERT INTO main.priority_jobs_snapshot (
-    job_id,
-    job_title_short,
-    company_name,
-    job_posted_date,
-    salary_year_avg,
-    priority_lvl,
-    updated_at
-)
-SELECT
-    src.job_id,
-    src.job_title_short,
-    src.company_name,
-    src.job_posted_date,
-    src.salary_year_avg,
-    src.priority_lvl,
-    src.updated_at
-FROM src_priority_jobs AS src;
+
+-- MERGE INTO statement - combines the update, insert and delete opertaions above
+MERGE INTO main.priority_jobs_snapshot AS tgt 
+USING src_priority_jobs AS src
+ON tgt.job_id = src.job_id
+
+WHEN MATCHED AND tgt.priority_lvl IS DISTINCT FROM src.priority_lvl THEN
+    UPDATE SET
+        priority_lvl = src.priority_lvl,
+        updated_at = src.updated_at
+WHEN NOT MATCHED THEN 
+    INSERT ( 
+        job_id,
+        job_title_short,
+        company_name,
+        job_posted_date,
+        salary_year_avg,
+        priority_lvl,
+        updated_at
+    )
+    VALUES ( 
+        src.job_id,
+        src.job_title_short,
+        src.company_name,
+        src.job_posted_date,
+        src.salary_year_avg,
+        src.priority_lvl,
+        src.updated_at
+    )
+
+WHEN NOT MATCHED BY SOURCE THEN DELETE;
 
 
 
 
-
+--Final check query
 SELECT
     job_title_short,
     COUNT(*) AS job_count,
