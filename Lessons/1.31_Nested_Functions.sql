@@ -116,3 +116,75 @@ SELECT
         ORDER BY json_extract_string(e.value, '$.skill')
     ) AS skills
 FROM raw_json, json_each(skills_json) AS e;
+
+
+-- Arrays 
+--Build a flat skills table for co-workers to access job titles, salary info., and skills in one table
+CREATE OR REPLACE TEMP TABLE job_skills_array AS
+SELECT
+    jpf.job_id,
+    jpf.job_title_short,
+    jpf.salary_year_avg,
+    ARRAY_AGG(sd.skills) AS skills_array
+FROM job_postings_fact AS jpf
+LEFT JOIN skills_job_dim AS sjd
+    ON jpf.job_id = sjd.job_id
+LEFT JOIN skills_dim AS sd 
+    ON sd.skill_id = sjd.skill_id
+GROUP BY ALL;
+
+--From the perspective of a Data Analyst, analyze the median salary per skill
+WITH flat_skills AS (
+    SELECT
+        job_id,
+        job_title_short,
+        salary_year_avg,
+        UNNEST(skills_array) AS skill
+    FROM job_skills_array
+)
+SELECT
+    skill,
+    MEDIAN(salary_year_avg) AS median_salary
+FROM flat_skills
+GROUP BY skill
+ORDER BY median_salary DESC;
+
+
+--Array of structs
+--Build a flat skill & type table for co-workers to access job_titles, salary info., skills, and type in one table
+CREATE OR REPLACE TEMP TABLE job_skills_array_struct AS
+SELECT
+    jpf.job_id,
+    jpf.job_title_short,
+    jpf.salary_year_avg,
+    ARRAY_AGG(
+        STRUCT_PACK(
+            skill_type := sd.type, 
+            skill_name := sd.skills
+        )
+    ) AS skills_type
+FROM job_postings_fact AS jpf
+LEFT JOIN skills_job_dim AS sjd
+    ON jpf.job_id = sjd.job_id
+LEFT JOIN skills_dim AS sd 
+    ON sd.skill_id = sjd.skill_id
+GROUP BY ALL;
+
+--From the perspective of a Data Analyst, analyze the median salary per type of skill
+
+
+WITH flat_skills AS (
+    SELECT
+        job_id,
+        job_title_short,
+        salary_year_avg,
+        UNNEST(skills_type).skill_type AS skill_type,
+        UNNEST(skills_type).skill_name AS skill_name
+    FROM
+        job_skills_array_struct
+)
+SELECT
+    skill_type,
+    MEDIAN(salary_year_avg) AS median_salary
+FROM flat_skills
+GROUP BY skill_type;
