@@ -22,7 +22,7 @@ SELECT TRIM(' SQL ');
 --Replacement
 SELECT REPLACE('SQL', 'Q', '_');
 
-SELECT REGEXP_REPLACE('data.nerd@gmail.com', '^.*(@)', '\1'); --Used AI's assistance, it replaces with @gmail.com
+SELECT REGEXP_REPLACE('data.nerd@gmail.com', '^.*(@)', '\1'); --'^.*(@)' matches everything up to the @, '\1' puts the @ back -> @gmail.com
 
 
 -- Final example on text functions
